@@ -1,118 +1,137 @@
+use std::fmt;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 use std::env;
 
-
-
-fn initialize_vector_of_checker_matrices() -> Vec<Vec<Vec<char>>> {
-
-    let mut checker_matrices : Vec<Vec<Vec<char>>> = Vec::new();
-
-    checker_matrices.push( vec![vec!['X', 'M', 'A', 'S'], vec!['\0','\0','\0','\0'], vec!['\0','\0','\0','\0'], vec!['\0','\0','\0','\0']] );
-    checker_matrices.push( vec![vec!['\0','\0','\0','\0'], vec!['X', 'M', 'A', 'S'], vec!['\0','\0','\0','\0'], vec!['\0','\0','\0','\0']] );
-    checker_matrices.push( vec![vec!['\0','\0','\0','\0'], vec!['\0','\0','\0','\0'], vec!['X', 'M', 'A', 'S'], vec!['\0','\0','\0','\0']] );
-    checker_matrices.push( vec![vec!['\0','\0','\0','\0'], vec!['\0','\0','\0','\0'], vec!['\0','\0','\0','\0'], vec!['X', 'M', 'A', 'S']] );
-
-    checker_matrices.push( vec![vec!['S', 'A', 'M', 'X'], vec!['\0','\0','\0','\0'], vec!['\0','\0','\0','\0'], vec!['\0','\0','\0','\0']] );
-    checker_matrices.push( vec![vec!['\0','\0','\0','\0'], vec!['S', 'A', 'M', 'X'], vec!['\0','\0','\0','\0'], vec!['\0','\0','\0','\0']] );
-    checker_matrices.push( vec![vec!['\0','\0','\0','\0'], vec!['\0','\0','\0','\0'], vec!['S', 'A', 'M', 'X'], vec!['\0','\0','\0','\0']] );
-    checker_matrices.push( vec![vec!['\0','\0','\0','\0'], vec!['\0','\0','\0','\0'], vec!['\0','\0','\0','\0'], vec!['S', 'A', 'M', 'X']] );
-
-    checker_matrices.push( vec![vec!['X','\0','\0','\0'], vec!['\0','X','\0','\0'], vec!['\0','\0','X','\0'], vec!['\0','\0','\0','X']] );
-    checker_matrices.push( vec![vec!['M','\0','\0','\0'], vec!['\0','M','\0','\0'], vec!['\0','\0','M','\0'], vec!['\0','\0','\0','M']] );
-    checker_matrices.push( vec![vec!['A','\0','\0','\0'], vec!['\0','S','\0','\0'], vec!['\0','\0','A','\0'], vec!['\0','\0','\0','A']] );
-    checker_matrices.push( vec![vec!['S','\0','\0','\0'], vec!['\0','A','\0','\0'], vec!['\0','\0','S','\0'], vec!['\0','\0','\0','S']] );
-
-    checker_matrices.push( vec![vec!['S','\0','\0','\0'], vec!['\0','S','\0','\0'], vec!['\0','\0','S','\0'], vec!['\0','\0','\0','S']] );
-    checker_matrices.push( vec![vec!['A','\0','\0','\0'], vec!['\0','A','\0','\0'], vec!['\0','\0','A','\0'], vec!['\0','\0','\0','A']] );
-    checker_matrices.push( vec![vec!['M','\0','\0','\0'], vec!['\0','M','\0','\0'], vec!['\0','\0','M','\0'], vec!['\0','\0','\0','M']] );
-    checker_matrices.push( vec![vec!['X','\0','\0','\0'], vec!['\0','X','\0','\0'], vec!['\0','\0','X','\0'], vec!['\0','\0','\0','X']] );
-
-    checker_matrices.push( vec![vec!['X','\0','\0','\0'], vec!['\0', 'M','\0','\0'], vec!['\0','\0', 'A','\0'], vec!['\0','\0','\0','S']] );
-    checker_matrices.push( vec![vec!['S','\0','\0','\0'], vec!['\0', 'A','\0','\0'], vec!['\0','\0', 'M','\0'], vec!['\0','\0','\0','X']] );
-    checker_matrices.push( vec![vec!['\0','\0','\0', 'X'], vec!['\0','\0', 'M','\0'], vec!['\0', 'A','\0','\0'], vec!['S','\0','\0','\0']] );
-    checker_matrices.push( vec![vec!['\0','\0','\0', 'S'], vec!['\0','\0', 'A','\0'], vec!['\0', 'M','\0','\0'], vec!['X','\0','\0','\0']] );
-
-    return checker_matrices;
+struct Matrix {
+    matrix: Vec<Vec<char>>,
 }
 
+impl fmt::Debug for Matrix {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        let height = self.matrix.len();
+        let width = self.matrix[0].len();
+        for i in 0..height {
+            for j in 0..width {
+                let val = self.matrix[i][j];
+                write!(f, "{val} ");
+            }
+            writeln!(f);
+        }
+        Ok(())
+    }
+}
 
+trait Get {
+    fn get(&self, i: i32, j: i32) -> Option<&char>;
+}
 
+impl Get for Matrix {
+    fn get(&self, i: i32, j: i32) -> Option<&char> {
+        if i < 0 || j < 0 {
+            return None;
+        }
+        let mut x: Option<&char> = None;
+        let row = self.matrix.get(i as usize);
+        if row.is_some() {
+            x = row.unwrap().get(j as usize);
+        }
+        return x;
+    }
+}
 
+trait CountXMAS {
+    fn count_at_pos(&self, i: usize, j: usize) -> u64;
+}
 
-fn check_all_at_position( i: usize, j: usize, input_matrix: &Vec<Vec<char>>, checker_matrices: &Vec<Vec<Vec<char>>>) -> u64 {
+impl CountXMAS for Matrix {
+    fn count_at_pos( &self, i: usize, j: usize) -> u64 {
 
-    fn check_single_checker(i: usize, j: usize, input_matrix: &Vec<Vec<char>>, checker_matrix: &Vec<Vec<char>> ) -> bool {
-        for locali in 0..checker_matrix.len() {
-            for localj in 0..checker_matrix.len() {
-                let check_value = checker_matrix[locali][localj];
-                if check_value != '\0' {
-                    let input_value = input_matrix[i+locali][j+localj];
-                    if check_value != input_value {
-                        return false;
+        fn check_with_delta( matrix : &Matrix, i: i32, j: i32, deltai: i32, deltaj: i32 ) -> bool {
+            if let Some(c) = matrix.get(i+deltai, j+deltaj) {
+                if *c == 'M' {
+                    if let Some(c) = matrix.get(i+2*deltai,j+2*deltaj) {
+                        if *c == 'A' {
+                            if let Some(c) = matrix.get(i+3*deltai, j+3*deltaj) {
+                                if *c == 'S' {
+                                    return true;
+                                }
+                            }
+                        }
                     }
                 }
             }
+            return false;
         }
-        return true;
-    }
 
-    let mut count: u64 = 0;
 
-    for checker in checker_matrices {
-        if check_single_checker(i,j,input_matrix,checker) {
+        let mut count: u64 = 0;
+
+        if check_with_delta(&self, i as i32,j as i32, 1, 0) {
             count += 1;
         }
+        if check_with_delta(&self, i as i32,j as i32, -1, 0) {
+            count += 1;
+        }
+        if check_with_delta(&self, i as i32,j as i32, 0, 1) {
+            count += 1;
+        }
+        if check_with_delta(&self, i as i32,j as i32, 0, -1) {
+            count += 1;
+        }
+        if check_with_delta(&self, i as i32,j as i32, 1, 1) {
+            count += 1;
+        }
+        if check_with_delta(&self, i as i32,j as i32, -1, -1) {
+            count += 1;
+        }
+        if check_with_delta(&self, i as i32,j as i32, 1, -1) {
+            count += 1;
+        }
+        if check_with_delta(&self, i as i32,j as i32, -1, 1) {
+            count += 1;
+        }
+
+        return count;
     }
-
-    return count;
 }
-
 
 fn main() {
     println!("Hello, aoc_2024_4!");
 
     if let Ok(lines) = read_lines("./src/input.txt") {
 
-        let mut input_matrix: Vec<Vec<char>> = Vec::new();
+        let mut input_matrix = Matrix {
+            matrix : Vec::new(),
+        };
 
         // Consumes the iterator, returns an ( Optional) String
         for line in lines.flatten() {
             let characters:Vec<char> = line.chars().collect();
-            input_matrix.push(characters);
+            input_matrix.matrix.push(characters);
         }
 
-        let height = input_matrix.len();
+        let height = input_matrix.matrix.len();
         println!("height {height}");
 
         // We assume every row has the same number of columns.
-        let width = input_matrix[0].len();
+        let width = input_matrix.matrix[0].len();
         println!("array width {width}");
-        
-        for i in 0..height {
-            let row = &input_matrix[i];
-            for j in 0..row.len() {
-                let val = input_matrix[i][j];
-                print!("{val} ");
-            }
-            println!();
-        }        
 
-        let checker_matrices = initialize_vector_of_checker_matrices();
-
-        // We assume every row has the same number of columns.
-        let check_width = checker_matrices[0][0].len();
-        println!("check_width {check_width}");
+        println!("input_matrix is:\n{input_matrix:?}");
 
         let mut count_found: u64 = 0;
 
-        for i in 0..(height-check_width+1) {
-            for j in 0..(width-check_width+1) {
-                count_found += check_all_at_position(i,j,&input_matrix,&checker_matrices);
+        for i in 0..height {
+            for j in 0..width {
+                if let Some(val) = input_matrix.get(i as i32,j as i32) {
+                    if *val == 'X' {
+                        count_found += input_matrix.count_at_pos(i,j);
+                    }
+                }
             }
         }
-
 
         println!("count_found {count_found}");
 
